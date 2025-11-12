@@ -51,6 +51,21 @@ export default {
           "4": "hsl(var(--chart-4))",
           "5": "hsl(var(--chart-5))",
         },
+        // NVIDIA-style dark theme with neon green
+        nvidia: {
+          dark: "#0a0a0a",
+          darker: "#050505",
+          gray: "#1a1a1a",
+          "gray-light": "#2a2a2a",
+          green: "#76b900",
+          "green-light": "#8fd400",
+          "green-dark": "#5a9100",
+        },
+        status: {
+          green: "#76b900",
+          yellow: "#fbbf24",
+          red: "#ef4444",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
