@@ -157,21 +157,44 @@ export function KanbanBoard() {
     setOriginalActiveTodo(null);
 
     const { active, over } = event;
-    if (!over) return;
+    if (!over || !draggedTodo) {
+      return;
+    }
 
     const activeId = active.id as string;
-    const overId = over.id as string;
 
-    if (activeId === overId) return;
+    // Find the current state of the dragged todo (after handleDragOver updated it)
+    const currentTodo = todos.find((t) => t.id === activeId);
+    if (!currentTodo) {
+      console.error("Could not find dragged todo in current state");
+      return;
+    }
 
-    // Prepare batch updates for positions
+    // Check if anything actually changed
+    const columnChanged = draggedTodo.column_id !== currentTodo.column_id;
+    const positionChanged = draggedTodo.position !== currentTodo.position;
+
+    if (!columnChanged && !positionChanged) {
+      // Nothing changed, no need to update
+      return;
+    }
+
+    console.log("Drag ended - changes detected:", {
+      todoId: activeId,
+      oldColumn: draggedTodo.column_id,
+      newColumn: currentTodo.column_id,
+      oldPosition: draggedTodo.position,
+      newPosition: currentTodo.position,
+    });
+
+    // Prepare batch updates for all todos that need position updates
     const updates: Array<{
       id: string;
       position: number;
       column_id: ColumnId;
     }> = [];
 
-    // Calculate new positions for all affected todos
+    // Group todos by their current column
     const columnGroups = new Map<ColumnId, Todo[]>();
     todos.forEach((todo) => {
       const group = columnGroups.get(todo.column_id) || [];
@@ -179,28 +202,34 @@ export function KanbanBoard() {
       columnGroups.set(todo.column_id, group);
     });
 
+    // For each column, ensure todos are positioned correctly (0, 1, 2, ...)
     columnGroups.forEach((columnTodos, columnId) => {
-      columnTodos.forEach((todo, index) => {
-        // Check if position changed OR if this is the dragged todo and column changed
-        const positionChanged = todo.position !== index;
-        const isDraggedTodo = todo.id === activeId;
-        const columnChanged = isDraggedTodo && draggedTodo && draggedTodo.column_id !== columnId;
-
-        if (positionChanged || columnChanged) {
-          updates.push({
-            id: todo.id,
-            position: index,
-            column_id: columnId,
-          });
-        }
-      });
+      columnTodos
+        .sort((a, b) => a.position - b.position)
+        .forEach((todo, index) => {
+          // Always update position to match array index
+          // And update column_id to current column
+          if (todo.position !== index || todo.id === activeId) {
+            updates.push({
+              id: todo.id,
+              position: index,
+              column_id: columnId,
+            });
+          }
+        });
     });
+
+    console.log("Sending updates to database:", updates);
 
     if (updates.length > 0) {
       const result = await batchUpdatePositions(updates);
       if (!result.success) {
         console.error("Failed to update positions:", result.error);
         // Reload todos to ensure consistency
+        await loadTodos();
+      } else {
+        console.log("Database update successful");
+        // Reload to ensure we have the latest from database
         await loadTodos();
       }
     }
