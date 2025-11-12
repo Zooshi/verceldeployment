@@ -36,6 +36,7 @@ const COLUMNS: Array<{ id: ColumnId; title: string }> = [
 export function KanbanBoard() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [activeTodo, setActiveTodo] = useState<Todo | null>(null);
+  const [originalActiveTodo, setOriginalActiveTodo] = useState<Todo | null>(null);
   const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -78,6 +79,8 @@ export function KanbanBoard() {
     const { active } = event;
     const todo = todos.find((t) => t.id === active.id);
     setActiveTodo(todo || null);
+    // Store original state to detect changes after drag
+    setOriginalActiveTodo(todo ? { ...todo } : null);
   };
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -149,7 +152,9 @@ export function KanbanBoard() {
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
+    const draggedTodo = originalActiveTodo;
     setActiveTodo(null);
+    setOriginalActiveTodo(null);
 
     const { active, over } = event;
     if (!over) return;
@@ -176,7 +181,12 @@ export function KanbanBoard() {
 
     columnGroups.forEach((columnTodos, columnId) => {
       columnTodos.forEach((todo, index) => {
-        if (todo.position !== index) {
+        // Check if position changed OR if this is the dragged todo and column changed
+        const positionChanged = todo.position !== index;
+        const isDraggedTodo = todo.id === activeId;
+        const columnChanged = isDraggedTodo && draggedTodo && draggedTodo.column_id !== columnId;
+
+        if (positionChanged || columnChanged) {
           updates.push({
             id: todo.id,
             position: index,
