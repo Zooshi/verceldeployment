@@ -209,7 +209,7 @@ export async function batchUpdatePositions(
 
     // Check if any update failed
     const failed = results.find(result => result.error);
-    if (failed) {
+    if (failed?.error) {
       console.error("Error in batch update:", failed.error);
       return { success: false, error: failed.error.message };
     }
